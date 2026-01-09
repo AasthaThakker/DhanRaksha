@@ -1,0 +1,75 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  name      String
+  role      Role     @default(USER)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  receiveAnomalyProtection    Boolean  @default(false)
+  avgReceiveAmount7d          Float?   // rolling average
+
+  accounts     Account[]
+  transactions Transaction[]
+  sessions     BehaviorSession[]
+}
+
+model Account {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  balance   Float    @default(0.0)
+  currency  String   @default("USD")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Transaction {
+  id          String          @id @default(uuid())
+  amount      Float
+  type        TransactionType
+  description String
+  status      String          @default("COMPLETED") // PENDING, COMPLETED, FAILED
+  riskScore   Float?          @default(0)
+  date        DateTime        @default(now())
+  
+  userId      String
+  user        User            @relation(fields: [userId], references: [id])
+}
+
+model BehaviorSession {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  score     Float // 0-100
+  riskLevel RiskLevel
+  createdAt DateTime @default(now())
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum TransactionType {
+  INCOME
+  EXPENSE
+  TRANSFER
+}
+
+enum RiskLevel {
+  LOW
+  MEDIUM
+  HIGH
+}
