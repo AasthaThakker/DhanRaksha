@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getSession } from '@/lib/auth'
+import { getAccurateBalance, syncAccountBalance } from '@/lib/balance'
 
 export async function GET() {
     try {
@@ -31,6 +32,11 @@ export async function GET() {
         if (!account) {
             return NextResponse.json({ error: 'No account found for user' }, { status: 404 })
         }
+
+        // Get accurate balance (synced with database)
+        // Force sync to ensure we have the latest total amount
+        const syncedBalance = await syncAccountBalance(userId)
+        const balanceInfo = await getAccurateBalance(userId)
 
         // Fetch recent transactions
         const recentTransactions = await db.transaction.findMany({
@@ -102,8 +108,11 @@ export async function GET() {
                 email: user.email,
             },
             account: {
-                balance: account.balance,
+                balance: syncedBalance,
                 currency: account.currency,
+                isSynced: balanceInfo.isSynced,
+                databaseBalance: balanceInfo.databaseBalance,
+                dynamicBalance: balanceInfo.dynamicBalance
             },
             metrics: {
                 monthlySpending: monthlySpendingAgg._sum.amount || 0,

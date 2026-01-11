@@ -7,17 +7,23 @@ import Link from "next/link"
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts"
 import { useEffect, useState } from "react"
 import { api } from "@/lib/api"
+import { useDynamicBalance } from "@/hooks/use-dynamic-balance"
 
 export default function DashboardPage() {
   const [data, setData] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  
+  // Use dynamic balance hook for real-time balance updates
+  const { balance: dynamicBalance, loading: balanceLoading, refreshBalance } = useDynamicBalance()
 
   const fetchData = async () => {
     try {
       setLoading(true)
       const res = await api.getDashboard()
       setData(res)
+      // Also refresh balance when dashboard data is fetched
+      refreshBalance()
     } catch (err: any) {
       setError(err.message)
     } finally {
@@ -59,14 +65,37 @@ export default function DashboardPage() {
       <div className="grid md:grid-cols-3 gap-6">
         {/* Account Balance */}
         <Card className="p-6 bg-white/80 backdrop-blur-xl border border-blue-100 hover:shadow-lg hover:shadow-blue-500/10 transition-all duration-300">
-          <p className="text-slate-600 text-sm font-medium mb-2">Account Balance</p>
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-slate-600 text-sm font-medium">Account Balance</p>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={refreshBalance}
+              disabled={balanceLoading}
+              className="h-6 w-6 p-0"
+            >
+              <RefreshCw className={`h-3 w-3 ${balanceLoading ? 'animate-spin' : ''}`} />
+            </Button>
+          </div>
           <h3 className="text-3xl font-bold text-slate-800 mb-4">
-            ₹{account?.balance?.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+            ₹{(dynamicBalance || account?.balance || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
           </h3>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <span className="text-green-600 text-sm font-medium">+{metrics?.monthlyTransactionCount} txs</span>
             <span className="text-slate-600 text-sm">this month</span>
+            {dynamicBalance !== null && (
+              <span className="text-blue-600 text-xs">Live</span>
+            )}
+            {account?.isSynced && (
+              <span className="text-green-600 text-xs">✓ Synced</span>
+            )}
           </div>
+          {account?.databaseBalance !== undefined && account?.dynamicBalance !== undefined && (
+            <div className="mt-2 text-xs text-slate-500">
+              DB: ₹{account.databaseBalance.toLocaleString()} | 
+              Calc: ₹{account.dynamicBalance.toLocaleString()}
+            </div>
+          )}
         </Card>
 
         {/* Monthly Spending */}

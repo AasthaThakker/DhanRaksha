@@ -26,7 +26,7 @@ export async function POST(request: Request) {
         const sender = await db.user.findUnique({
             where: { id: session.id as string },
             include: { 
-                accounts: true 
+                Account: true 
             }
         })
 

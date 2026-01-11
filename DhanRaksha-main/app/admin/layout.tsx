@@ -26,9 +26,9 @@ export default function AdminLayout({
   }
 
   const adminNavItems = [
-    { href: "/admin", label: "Dashboard", icon: BarChart3 },
     { href: "/admin/users", label: "User Analytics", icon: Users },
     { href: "/admin/risk-monitor", label: "Risk Monitor", icon: AlertTriangle },
+    { href: "/admin", label: "Network Graph", icon: BarChart3 }
     // { href: "/admin/ai-insights", label: "AI Insights", icon: Zap },
   ]
 

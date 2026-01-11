@@ -31,22 +31,39 @@ export async function createTransactionNotification(
     amount: number,
     description: string,
     transactionId: string,
-    status: string = 'COMPLETED'
+    status: string = 'COMPLETED',
+    riskReasons?: string[]
 ) {
     if (transactionType === 'TRANSFER' && status === 'COMPLETED') {
         await createNotification(
             userId,
             'MONEY_DEDUCTED',
             'Money Deducted',
-            `$${amount.toFixed(2)} has been deducted from your account for: ${description}`,
+            `₹${amount.toFixed(2)} has been deducted from your account for: ${description}`,
             transactionId
         )
     } else if (status === 'PENDING') {
+        const pendingMessage = riskReasons && riskReasons.length > 0
+            ? `Your payment of ₹${amount.toFixed(2)} for: ${description} is pending because: ${riskReasons.join(', ')}`
+            : `Your payment of ₹${amount.toFixed(2)} for: ${description} is pending`;
+        
         await createNotification(
             userId,
             'PAYMENT_PENDING',
             'Payment Pending',
-            `Your payment of $${amount.toFixed(2)} for: ${description} is pending`,
+            pendingMessage,
+            transactionId
+        )
+    } else if (status === 'FAILED') {
+        const failedMessage = riskReasons && riskReasons.length > 0
+            ? `Your payment of ₹${amount.toFixed(2)} for: ${description} failed because: ${riskReasons.join(', ')}`
+            : `Your payment of ₹${amount.toFixed(2)} for: ${description} failed`;
+        
+        await createNotification(
+            userId,
+            'PAYMENT_PENDING',
+            'Payment Failed',
+            failedMessage,
             transactionId
         )
     } else if (status === 'COMPLETED') {
@@ -54,7 +71,7 @@ export async function createTransactionNotification(
             userId,
             'TRANSACTION_COMPLETED',
             'Transaction Completed',
-            `Your transaction of $${amount.toFixed(2)} for: ${description} has been completed`,
+            `Your transaction of ₹${amount.toFixed(2)} for: ${description} has been completed`,
             transactionId
         )
     }

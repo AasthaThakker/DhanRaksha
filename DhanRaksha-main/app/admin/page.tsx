@@ -1,10 +1,11 @@
 "use client"
 
 import { Card } from "@/components/ui/card"
-import { Users, AlertTriangle, TrendingUp, CheckCircle, Loader2 } from "lucide-react"
+import { Users, AlertTriangle, TrendingUp, CheckCircle, Loader2, Network } from "lucide-react"
 import Link from "next/link"
 import { useEffect, useState } from "react"
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts"
+import NetworkMap from "@/components/admin/network-map"
 
 interface Metrics {
   totalUsers: number;
@@ -175,7 +176,7 @@ export default function AdminPage() {
 
       {/* Key Metrics */}
       <div className="grid md:grid-cols-4 gap-6">
-        <Card className="p-6">
+        {/* <Card className="p-6">
           <div className="flex items-start justify-between mb-4">
             <div>
               <p className="text-slate-600 text-sm font-medium">Total Users</p>
@@ -186,9 +187,9 @@ export default function AdminPage() {
             <Users className="w-8 h-8 text-blue-600" />
           </div>
           <p className="text-sm text-slate-600">Active participants</p>
-        </Card>
+        </Card> */}
 
-        <Card className="p-6">
+        {/* <Card className="p-6">
           <div className="flex items-start justify-between mb-4">
             <div>
               <p className="text-slate-600 text-sm font-medium">Flagged Sessions</p>
@@ -199,9 +200,9 @@ export default function AdminPage() {
             <AlertTriangle className="w-8 h-8 text-amber-600" />
           </div>
           <p className="text-sm text-slate-600">Requires review</p>
-        </Card>
+        </Card> */}
 
-        <Card className="p-6">
+        {/* <Card className="p-6">
           <div className="flex items-start justify-between mb-4">
             <div>
               <p className="text-slate-600 text-sm font-medium">Fraud Attempts Blocked</p>
@@ -212,9 +213,9 @@ export default function AdminPage() {
             <CheckCircle className="w-8 h-8 text-green-600" />
           </div>
           <p className="text-sm text-slate-600">Based on behavior AI</p>
-        </Card>
+        </Card> */}
 
-        <Card className="p-6">
+        {/* <Card className="p-6">
           <div className="flex items-start justify-between mb-4">
             <div>
               <p className="text-slate-600 text-sm font-medium">AI Accuracy</p>
@@ -225,11 +226,14 @@ export default function AdminPage() {
             <TrendingUp className="w-8 h-8 text-purple-600" />
           </div>
           <p className="text-sm text-slate-600">Last 30 days</p>
-        </Card>
+        </Card> */}
       </div>
 
+      {/* Network Map */}
+      <NetworkMap />
+
       {/* User Management - Flagged/Blocked Users */}
-      <Card className="p-6">
+      {/* <Card className="p-6">
         <div className="flex items-center justify-between mb-6">
           <h3 className="text-lg font-semibold text-slate-900">User Management</h3>
           <p className="text-sm text-slate-600">Manage flagged and blocked users</p>
@@ -276,11 +280,11 @@ export default function AdminPage() {
             ))
           )}
         </div>
-      </Card>
+      </Card> */}
 
       {/* Charts */}
-      <div className="grid lg:grid-cols-2 gap-6">
-        {/* Fraud Detection Chart */}
+      <div className="space-y-6">
+        {/* Fraud Detection Chart
         <Card className="p-6">
           <h3 className="text-lg font-semibold text-slate-900 mb-6">Fraud Detection Attempts</h3>
           <ResponsiveContainer width="100%" height={300}>
@@ -294,15 +298,15 @@ export default function AdminPage() {
               <Bar dataKey="attempts" fill="#ef4444" radius={[8, 8, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
-        </Card>
+        </Card> */}
 
-        {/* AI Accuracy Trend */}
+        {/* AI Accuracy Trend - Full Width */}
         <Card className="p-6">
           <h3 className="text-lg font-semibold text-slate-900 mb-6">AI Model Accuracy Trend</h3>
-          <ResponsiveContainer width="100%" height={300}>
+          <ResponsiveContainer width="100%" height={400}>
             <LineChart data={accuracyData}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-              <XAxis dataKey="week" stroke="#94a3b8" />
+              <XAxis dataKey="times" stroke="#94a3b8" />
               <YAxis stroke="#94a3b8" domain={[97, 100]} />
               <Tooltip
                 contentStyle={{ backgroundColor: "#0f172a", border: "none", borderRadius: "8px", color: "#fff" }}
@@ -320,7 +324,7 @@ export default function AdminPage() {
       </div>
 
       {/* Recent Flagged Sessions */}
-      <Card className="p-6">
+      {/* <Card className="p-6">
         <div className="flex items-center justify-between mb-6">
           <h3 className="text-lg font-semibold text-slate-900">Recently Flagged Sessions</h3>
           <Link href="/admin/risk-monitor" className="text-blue-600 text-sm font-medium hover:text-blue-700">
@@ -355,7 +359,7 @@ export default function AdminPage() {
             ))
           )}
         </div>
-      </Card>
+      </Card> */}
     </div>
   )
 }

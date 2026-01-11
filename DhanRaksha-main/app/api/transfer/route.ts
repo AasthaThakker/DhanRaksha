@@ -3,6 +3,7 @@ import { db } from '@/lib/db'
 import { getSession } from '@/lib/auth'
 import { createTransactionNotification } from '@/lib/notifications'
 import { extractDeviceMetadata, storeTransactionMetadata } from '@/lib/device-metadata'
+import { getAccurateBalance, syncAccountBalance } from '@/lib/balance'
 
 // 🔐 Fraud imports
 import { ruleEngine } from '@/lib/fraud/rules'
@@ -45,7 +46,10 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'Cannot transfer to yourself' }, { status: 400 })
 
         const senderAccount = (sender as any).Account[0]
-        if (senderAccount.balance < amount)
+        
+        // Get accurate balance (synced with database)
+        const senderBalanceInfo = await getAccurateBalance(sender.id)
+        if (senderBalanceInfo.balance < amount)
             return NextResponse.json({ error: 'Insufficient funds' }, { status: 400 })
 
         // ------------------ FETCH RECIPIENT ------------------
@@ -106,6 +110,7 @@ export async function POST(request: NextRequest) {
             cached = await redis.get(cacheKey)
         }
         let finalRiskScore: number
+        let ruleResult: any = { reasons: [] }
 
         if (cached !== null) {
             finalRiskScore = Number(cached)
@@ -127,7 +132,7 @@ export async function POST(request: NextRequest) {
             })
 
             // ---- RULE ENGINE ----
-            const ruleResult = ruleEngine({
+            ruleResult = ruleEngine({
                 amount,
                 avgDailyAmount: (last7d._avg.amount ?? 1),
                 isNewDevice: true, // plug device fingerprint later
@@ -168,7 +173,8 @@ export async function POST(request: NextRequest) {
         if (action === 'BLOCK') {
             return NextResponse.json({
                 error: 'Transaction blocked due to high risk',
-                riskScore: finalRiskScore
+                riskScore: finalRiskScore,
+                reasons: ruleResult.reasons
             }, { status: 403 })
         }
 
@@ -191,7 +197,8 @@ export async function POST(request: NextRequest) {
                 amount,
                 'Transaction under review',
                 pendingTransaction.id,
-                'PENDING'
+                'PENDING',
+                ruleResult.reasons
             )
 
             return NextResponse.json({
@@ -260,9 +267,17 @@ export async function POST(request: NextRequest) {
             'COMPLETED'
         )
 
+        // Sync both account balances with database
+        await syncAccountBalance(sender.id)
+        await syncAccountBalance(recipient.id)
+        
+        // Get updated balances
+        const senderNewBalance = await getAccurateBalance(sender.id)
+        const recipientNewBalance = await getAccurateBalance(recipient.id)
+
         return NextResponse.json({
             success: true,
-            newBalance: result[0].balance,
+            newBalance: senderNewBalance.balance,
             riskScore: finalRiskScore
         })
 

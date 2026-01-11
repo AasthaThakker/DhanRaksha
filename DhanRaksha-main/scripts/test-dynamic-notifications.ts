@@ -1,4 +1,5 @@
-import { createUserNotification, createSuspiciousUserNotification, createBlockUserNotification, createTransactionNotification } from '../lib/dynamic-admin-notifications';
+import { createUserNotification, createSuspiciousUserNotification, createBlockUserNotification } from '../lib/dynamic-admin-notifications';
+import { createTransactionNotification } from '../lib/notifications';
 import { db } from '../lib/db';
 
 async function testDynamicNotifications() {
@@ -21,13 +22,28 @@ async function testDynamicNotifications() {
         console.log('📝 Testing block user notification...');
         await createBlockUserNotification('blocked@example.com', 'Admin');
         
-        // Test 5: Transaction notification
-        console.log('📝 Testing transaction notification...');
-        await createTransactionNotification('transaction@example.com', 50000, 'TRANSFER', true);
+        // Test 5: Transaction notification with risk reasons
+        console.log('📝 Testing transaction notification with risk reasons...');
+        await createTransactionNotification(
+            'transaction@example.com', 
+            'TRANSFER', 
+            50000, 
+            'Test transaction', 
+            'txn_123', 
+            'PENDING',
+            ['Amount > 3x daily average', 'New device + high amount']
+        );
         
         // Test 6: High value transaction (non-suspicious)
         console.log('📝 Testing high value transaction notification...');
-        await createTransactionNotification('vip@example.com', 100000, 'INCOME', false);
+        await createTransactionNotification(
+            'vip@example.com', 
+            'INCOME', 
+            100000, 
+            'Salary credit', 
+            'txn_456', 
+            'COMPLETED'
+        );
 
         // Verify notifications were created
         const adminUser = await db.user.findFirst({
