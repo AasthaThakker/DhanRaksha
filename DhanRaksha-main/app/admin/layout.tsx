@@ -28,7 +28,7 @@ export default function AdminLayout({
     { href: "/admin", label: "Dashboard", icon: BarChart3 },
     { href: "/admin/users", label: "User Analytics", icon: Users },
     { href: "/admin/risk-monitor", label: "Risk Monitor", icon: AlertTriangle },
-    { href: "/admin/ai-insights", label: "AI Insights", icon: Zap },
+    // { href: "/admin/ai-insights", label: "AI Insights", icon: Zap },
   ]
 
   return (

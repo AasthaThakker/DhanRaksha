@@ -1,50 +1,70 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 
-export async function GET() {
+export async function GET(request: Request) {
     try {
+        const { searchParams } = new URL(request.url)
+        const riskFilter = searchParams.get('risk') || 'all'
+        const searchQuery = searchParams.get('search') || ''
+
         // Get daily risk score trends for the last 30 days
         const thirtyDaysAgo = new Date()
         thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
 
+        // Get daily risk score trends from transactions
         const dailyRiskTrends = await db.$queryRaw`
             SELECT 
                 DATE(date) as date,
-                AVG("riskScore") as avgRiskScore,
-                COUNT(*) as transactionCount
+                COUNT(*) as "transactionCount",
+                AVG("riskScore") as "avgRiskScore",
+                MAX("riskScore") as "maxRiskScore",
+                MIN("riskScore") as "minRiskScore",
+                COUNT(CASE WHEN "riskScore" >= 70 THEN 1 END) as "highRiskCount",
+                COUNT(CASE WHEN "riskScore" >= 40 AND "riskScore" < 70 THEN 1 END) as "mediumRiskCount",
+                COUNT(CASE WHEN "riskScore" < 40 THEN 1 END) as "lowRiskCount"
             FROM "Transaction" 
-            WHERE "date" >= ${thirtyDaysAgo}
-                AND "riskScore" IS NOT NULL
+            WHERE "riskScore" IS NOT NULL 
+            AND date >= NOW() - INTERVAL '30 days'
             GROUP BY DATE(date)
             ORDER BY date DESC
             LIMIT 30
         `
 
-        // Get user risk summaries with detailed transaction analysis
+        // Get user risk summaries
         const userRiskSummaries = await db.$queryRaw`
             SELECT 
                 u.id,
                 u.name,
                 u.email,
+                
+                -- Transaction counts
                 COUNT(t.id) as "transactionCount",
+                
+                -- Risk score statistics
                 AVG(t."riskScore") as "avgTransactionRisk",
                 MAX(t."riskScore") as "maxTransactionRisk",
                 MIN(t."riskScore") as "minTransactionRisk",
+                
+                -- Transaction type counts
                 SUM(CASE WHEN t.type = 'INCOME' THEN 1 ELSE 0 END) as "incomeCount",
                 SUM(CASE WHEN t.type = 'EXPENSE' THEN 1 ELSE 0 END) as "expenseCount",
                 SUM(CASE WHEN t.type = 'TRANSFER' THEN 1 ELSE 0 END) as "transferCount",
+                
+                -- Status counts
                 SUM(CASE WHEN t.status = 'COMPLETED' THEN 1 ELSE 0 END) as "completedCount",
                 SUM(CASE WHEN t.status = 'FAILED' THEN 1 ELSE 0 END) as "failedCount",
                 SUM(CASE WHEN t.status = 'PENDING' THEN 1 ELSE 0 END) as "pendingCount",
+                
+                -- Amount statistics
                 AVG(t.amount) as "avgAmount",
                 SUM(t.amount) as "totalAmount",
                 MAX(t.amount) as "maxAmount",
                 MIN(t.amount) as "minAmount"
+                
             FROM "User" u
             LEFT JOIN "Transaction" t ON u.id = t."userId"
             GROUP BY u.id, u.name, u.email
             HAVING COUNT(t.id) > 0
-            ORDER BY "avgTransactionRisk" DESC NULLS LAST
         `
 
         // Get risk distribution data for spider charts
@@ -78,7 +98,12 @@ export async function GET() {
                 
                 -- Time-based patterns (last 7 days vs older)
                 SUM(CASE WHEN t.date >= NOW() - INTERVAL '7 days' THEN 1 ELSE 0 END) as "recentTransactionCount",
-                SUM(CASE WHEN t.date < NOW() - INTERVAL '7 days' THEN 1 ELSE 0 END) as "olderTransactionCount"
+                SUM(CASE WHEN t.date < NOW() - INTERVAL '7 days' THEN 1 ELSE 0 END) as "olderTransactionCount",
+                
+                -- Amount averages
+                AVG(t.amount) as "avgAmount",
+                MAX(t.amount) as "maxAmount",
+                AVG(t."riskScore") as "avgTransactionRisk"
                 
             FROM "User" u
             LEFT JOIN "Transaction" t ON u.id = t."userId"
@@ -123,44 +148,82 @@ export async function GET() {
             }
         })
 
+        // Get behavior sessions with user data (dynamic from database)
+        const behaviorSessions = await db.behaviorSession.findMany({
+            where: {
+                ...(riskFilter !== 'all' && {
+                    riskLevel: riskFilter.toUpperCase() as any
+                })
+            },
+            orderBy: { createdAt: 'desc' },
+            take: 50
+        })
+
+        // Get user data separately
+        const userIds = behaviorSessions.map(session => session.userId)
+        const users = await db.user.findMany({
+            where: { id: { in: userIds } },
+            select: { id: true, name: true, email: true }
+        })
+        const userMap = users.reduce((map, user) => {
+            map[user.id] = user
+            return map
+        }, {} as Record<string, any>)
+
+        // Filter by search query if provided
+        const filteredSessions = searchQuery 
+            ? behaviorSessions.filter(session => {
+                const user = userMap[session.userId]
+                return user && (
+                    user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                    user.email.toLowerCase().includes(searchQuery.toLowerCase())
+                )
+            })
+            : behaviorSessions
+
+        // Get recent transactions for each session
+        const sessionsWithTransactions = await Promise.all(
+            filteredSessions.map(async (session) => {
+                const recentTransactions = await db.transaction.findMany({
+                    where: {
+                        userId: session.userId,
+                        date: {
+                            gte: new Date(Date.now() - 24 * 60 * 60 * 1000) // Last 24 hours
+                        }
+                    },
+                    orderBy: { date: 'desc' },
+                    take: 10
+                })
+
+                return {
+                    id: session.id,
+                    sessionId: session.id.slice(0, 8),
+                    user: userMap[session.userId]?.email || 'Unknown',
+                    userName: userMap[session.userId]?.name || 'Unknown User',
+                    device: 'Web Browser', // Default device info
+                    location: 'Unknown', // Default location
+                    riskScore: session.score,
+                    riskLevel: session.riskLevel,
+                    anomalies: ['Normal pattern'], // Default since no anomaly table
+                    time: session.createdAt.toISOString(),
+                    transactionCount: recentTransactions.length,
+                    totalAmount: recentTransactions.reduce((sum, t) => sum + t.amount, 0)
+                }
+            })
+        )
+
+        // Calculate summary from dynamic sessions
+        const summary = {
+            total: sessionsWithTransactions.length,
+            highRisk: sessionsWithTransactions.filter(s => s.riskLevel === 'HIGH').length,
+            mediumRisk: sessionsWithTransactions.filter(s => s.riskLevel === 'MEDIUM').length,
+            lowRisk: sessionsWithTransactions.filter(s => s.riskLevel === 'LOW').length
+        }
+
         return NextResponse.json({
             success: true,
-            sessions: [
-                {
-                    id: '1',
-                    sessionId: 'sess_001',
-                    user: 'bikramsadhukhan505@gmail.com',
-                    userName: 'Bikram',
-                    device: 'Web Browser',
-                    location: 'Mumbai, India',
-                    riskScore: 85.5,
-                    riskLevel: 'HIGH',
-                    anomalies: ['High risk transactions: 12', 'Large transactions: 8', 'High transaction velocity'],
-                    time: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-                    transactionCount: 15,
-                    totalAmount: 1250000
-                },
-                {
-                    id: '2',
-                    sessionId: 'sess_002',
-                    user: 'automated.aesthetix@gmail.com',
-                    userName: 'Aastha Thakker',
-                    device: 'Mobile App',
-                    location: 'Delhi, India',
-                    riskScore: 45.2,
-                    riskLevel: 'MEDIUM',
-                    anomalies: ['Medium risk transactions: 5'],
-                    time: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString(),
-                    transactionCount: 8,
-                    totalAmount: 320000
-                }
-            ],
-            summary: {
-                total: 2,
-                highRisk: 1,
-                mediumRisk: 1,
-                lowRisk: 0
-            },
+            sessions: sessionsWithTransactions,
+            summary,
             dailyRiskTrends: JSON.parse(JSON.stringify(dailyRiskTrends, (key, value) => 
                 typeof value === 'bigint' ? Number(value) : value
             )),

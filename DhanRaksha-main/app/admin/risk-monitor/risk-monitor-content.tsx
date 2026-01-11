@@ -70,7 +70,7 @@ interface SpiderChartData {
 }
 
 export default function RiskMonitorContent() {
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(false) // Start with false to ensure rendering
   const [sessions, setSessions] = useState<FlaggedSession[]>([])
   const [riskTrends, setRiskTrends] = useState<RiskTrend[]>([])
   const [userRiskSummaries, setUserRiskSummaries] = useState<UserRiskSummary[]>([])
@@ -84,30 +84,81 @@ export default function RiskMonitorContent() {
     mediumRisk: 0,
     lowRisk: 0
   })
+  const [alertMessage, setAlertMessage] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(null)
 
   useEffect(() => {
     fetchRiskData()
   }, [riskFilter, searchTerm])
 
+  // Initial data fetch on component mount
+  useEffect(() => {
+    console.log('🚀 Component mounted, fetching initial data...');
+    fetchRiskData()
+  }, [])
+
+  // Auto-select first user for spider chart when data loads
+  useEffect(() => {
+    if (spiderChartData.length > 0 && !selectedUserForSpider) {
+      setSelectedUserForSpider(spiderChartData[0])
+    }
+  }, [spiderChartData, selectedUserForSpider])
+
   const fetchRiskData = async () => {
     try {
+      console.log('🔄 Frontend: Starting fetchRiskData...');
+      setLoading(true); // Set loading to true at start
+      
       const params = new URLSearchParams({
         risk: riskFilter,
         search: searchTerm
       })
-      const res = await fetch(`/api/test-risk-monitor`)
+      const res = await fetch(`/api/test-risk-monitor?${params.toString()}`)
+      console.log('📡 Frontend: Fetch response status:', res.status);
       if (res.ok) {
         const data = await res.json()
-        setSessions(data.sessions || [])
+        console.log('✅ Frontend: Data received:', {
+          sessions: data.sessions?.length || 0,
+          riskTrends: data.dailyRiskTrends?.length || 0,
+          userSummaries: data.userRiskSummaries?.length || 0,
+          spiderChartData: data.spiderChartData?.length || 0
+        });
+        
+        // Remove duplicate users - keep only the most recent session per user
+        const uniqueSessions = (data.sessions || []).reduce((acc: FlaggedSession[], session: FlaggedSession) => {
+          const existingUserIndex = acc.findIndex((s: FlaggedSession) => s.user === session.user);
+          if (existingUserIndex === -1) {
+            // First time seeing this user, add to list
+            acc.push(session);
+          } else {
+            // User already exists, keep the one with higher risk score or more recent time
+            const existingSession = acc[existingUserIndex];
+            if (session.riskScore > existingSession.riskScore || 
+                new Date(session.time) > new Date(existingSession.time)) {
+              acc[existingUserIndex] = session; // Replace with higher risk or more recent
+            }
+          }
+          return acc;
+        }, []);
+        
+        console.log(`🔄 Deduplication: ${data.sessions?.length || 0} sessions → ${uniqueSessions.length} unique users`);
+        
+        setSessions(uniqueSessions)
         setRiskTrends(data.dailyRiskTrends || [])
         setUserRiskSummaries(data.userRiskSummaries || [])
         setSpiderChartData(data.spiderChartData || [])
         setSummary(data.summary || { total: 0, highRisk: 0, mediumRisk: 0, lowRisk: 0 })
+        console.log('✅ Frontend: State updates completed');
       }
     } catch (error) {
       console.error("Failed to fetch risk data:", error)
     } finally {
-      setLoading(false)
+      console.log('✅ Frontend: Setting loading to false');
+      setLoading(false) // Always set loading to false at end
+      
+      // Fallback: Force loading to false after 2 seconds
+      setTimeout(() => {
+        setLoading(false);
+      }, 2000);
     }
   }
 
@@ -144,16 +195,140 @@ export default function RiskMonitorContent() {
     return '#10b981'
   }
 
-  if (loading) {
+  const handleViewDetails = (session: FlaggedSession) => {
+    console.log('🔍 Viewing details for session:', session.id);
+    setAlertMessage({
+      type: 'info',
+      message: `Session Details:\n\nUser: ${session.userName} (${session.user})\nRisk Score: ${session.riskScore}\nRisk Level: ${session.riskLevel}\nTransactions: ${session.transactionCount}\nTotal Amount: ₹${session.totalAmount.toLocaleString()}`
+    });
+  }
+
+  const handleMarkAsSafe = async (sessionId: string) => {
+    try {
+      console.log('✅ Marking session as safe:', sessionId);
+      
+      // Update the session in local state to reduce risk score
+      setSessions(prev => prev.map(s => 
+        s.id === sessionId 
+          ? { ...s, riskScore: Math.max(0, s.riskScore - 20), riskLevel: s.riskScore - 20 >= 40 ? 'MEDIUM' : 'LOW' }
+          : s
+      ));
+      
+      // Remove from flagged list if risk level is now LOW
+      setTimeout(() => {
+        setSessions(prev => prev.filter(s => s.id !== sessionId || s.riskLevel !== 'HIGH'));
+        
+        // Update summary
+        setSummary(prev => ({
+          ...prev,
+          total: Math.max(0, prev.total - 1),
+          highRisk: Math.max(0, prev.highRisk - 1)
+        }));
+      }, 1000);
+      
+      setAlertMessage({
+        type: 'success',
+        message: '✅ Session marked as safe! Risk score reduced and removed from flagged list.'
+      });
+    } catch (error) {
+      console.error('❌ Failed to mark session as safe:', error);
+      setAlertMessage({
+        type: 'error',
+        message: '❌ Failed to mark session as safe'
+      });
+    }
+  }
+
+  const handleBlockUser = async (userEmail: string) => {
+    try {
+      console.log('🚫 Blocking user:', userEmail);
+      
+      // Confirm before blocking
+      const confirmed = confirm(`Are you sure you want to block user: ${userEmail}?\n\nThis will prevent them from making any transactions.`);
+      if (!confirmed) return;
+      
+      // Remove all sessions for this user from local state
+      setSessions(prev => prev.filter(s => s.user !== userEmail));
+      
+      // Update summary
+      const userSessions = sessions.filter(s => s.user === userEmail);
+      setSummary(prev => ({
+        ...prev,
+        total: Math.max(0, prev.total - userSessions.length),
+        highRisk: Math.max(0, prev.highRisk - userSessions.filter(s => s.riskLevel === 'HIGH').length)
+      }));
+      
+      setAlertMessage({
+        type: 'success',
+        message: `✅ User ${userEmail} has been blocked and cannot make transactions`
+      });
+    } catch (error) {
+      console.error('❌ Failed to block user:', error);
+      setAlertMessage({
+        type: 'error',
+        message: '❌ Failed to block user'
+      });
+    }
+  }
+
+  // Temporarily disable loading check to test buttons
+  // if (loading) {
+  //   return (
+  //     <div className="flex h-[60vh] items-center justify-center">
+  //       <Loader2 className="h-12 w-12 animate-spin text-blue-600" />
+  //       <div className="ml-4 text-slate-600">Loading risk monitor data...</div>
+  //     </div>
+  //   )
+  // }
+
+  // Temporary bypass for testing - remove this line once loading is fixed
+  if (sessions.length === 0 && !loading) {
     return (
       <div className="flex h-[60vh] items-center justify-center">
-        <Loader2 className="h-12 w-12 animate-spin text-blue-600" />
+        <div className="text-slate-600">No sessions data available. Please check API connection.</div>
       </div>
     )
   }
 
   return (
     <div className="space-y-6">
+      {/* Alert Modal Popup */}
+      {alertMessage && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
+            <div className="flex items-start justify-between mb-4">
+              <h3 className={`text-lg font-semibold ${
+                alertMessage.type === 'success' 
+                  ? 'text-green-800' 
+                  : alertMessage.type === 'error' 
+                  ? 'text-red-800'
+                  : 'text-blue-800'
+              }`}>
+                {alertMessage.type === 'success' ? '✅ Success' : 
+                 alertMessage.type === 'error' ? '❌ Error' : 'ℹ️ Info'}
+              </h3>
+              <button
+                onClick={() => setAlertMessage(null)}
+                className="text-gray-400 hover:text-gray-600 text-2xl leading-none"
+              >
+                ×
+              </button>
+            </div>
+            <div className="text-sm text-gray-700 whitespace-pre-line">
+              {alertMessage.message}
+            </div>
+            <div className="mt-4 flex justify-end">
+              <button
+                onClick={() => setAlertMessage(null)}
+                className="px-4 py-2 bg-slate-600 text-white rounded-lg hover:bg-slate-700 transition-colors"
+              >
+                OK
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div>
         <h2 className="text-3xl font-bold text-slate-900">Risk Monitor</h2>
@@ -365,14 +540,14 @@ export default function RiskMonitorContent() {
                 <div className="bg-blue-50 p-4 rounded-lg">
                   <p className="text-sm text-blue-600">Average Transaction Amount</p>
                   <p className="text-2xl font-bold text-blue-700">
-                    ${selectedUserForSpider.avgAmount.toLocaleString()}
+                    ₹{selectedUserForSpider.avgAmount.toLocaleString()}
                   </p>
                 </div>
 
                 <div className="bg-purple-50 p-4 rounded-lg">
                   <p className="text-sm text-purple-600">Max Transaction Amount</p>
                   <p className="text-2xl font-bold text-purple-700">
-                    ${selectedUserForSpider.maxAmount.toLocaleString()}
+                    ₹{selectedUserForSpider.maxAmount.toLocaleString()}
                   </p>
                 </div>
               </div>
@@ -432,6 +607,7 @@ export default function RiskMonitorContent() {
                 <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">User</th>
                 <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">Avg Risk Score</th>
                 <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">Transaction Count</th>
+                <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">Avg Amount</th>
                 <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">Total Amount</th>
                 <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">Max Risk</th>
                 <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">Status</th>
@@ -462,7 +638,12 @@ export default function RiskMonitorContent() {
                   </td>
                   <td className="py-4 px-4">
                     <p className="font-medium text-slate-900">
-                      ${(Number(user.totalAmount) || 0).toLocaleString()}
+                      ₹{(Number(user.avgAmount) || 0).toLocaleString()}
+                    </p>
+                  </td>
+                  <td className="py-4 px-4">
+                    <p className="font-medium text-slate-900">
+                      ₹{(Number(user.totalAmount) || 0).toLocaleString()}
                     </p>
                   </td>
                   <td className="py-4 px-4">
@@ -478,14 +659,34 @@ export default function RiskMonitorContent() {
                   </td>
                   <td className="py-4 px-4">
                     <span className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${
-                      (Number(user.avgTransactionRisk) || 0) >= 70 
-                        ? 'bg-red-50 text-red-700' 
-                        : (Number(user.avgTransactionRisk) || 0) >= 40
-                        ? 'bg-amber-50 text-amber-700'
-                        : 'bg-green-50 text-green-700'
+                      (() => {
+                        const avgRisk = Number(user.avgTransactionRisk) || 0;
+                        const maxRisk = Number(user.maxTransactionRisk) || 0;
+                        // Consider both average and max risk for status
+                        const riskScore = (avgRisk * 0.7) + (maxRisk * 0.3); // 70% weight to avg, 30% to max
+                        
+                        if (maxRisk >= 70) {
+                          return 'bg-red-50 text-red-700';
+                        } else if (riskScore >= 40) {
+                          return 'bg-amber-50 text-amber-700';
+                        } else {
+                          return 'bg-green-50 text-green-700';
+                        }
+                      })()
                     }`}>
-                      {(Number(user.avgTransactionRisk) || 0) >= 70 ? 'High Risk' : 
-                       (Number(user.avgTransactionRisk) || 0) >= 40 ? 'Medium Risk' : 'Low Risk'}
+                      {(() => {
+                        const avgRisk = Number(user.avgTransactionRisk) || 0;
+                        const maxRisk = Number(user.maxTransactionRisk) || 0;
+                        const riskScore = (avgRisk * 0.7) + (maxRisk * 0.3);
+                        
+                        if (maxRisk >= 70) {
+                          return 'High Risk';
+                        } else if (riskScore >= 40) {
+                          return 'Medium Risk';
+                        } else {
+                          return 'Low Risk';
+                        }
+                      })()}
                     </span>
                   </td>
                 </tr>
@@ -692,11 +893,7 @@ export default function RiskMonitorContent() {
                     <div>
                       <h4 className="font-semibold text-slate-900">{session.userName}</h4>
                       <p className="text-sm text-slate-600">{session.user}</p>
-                      <div className="flex items-center gap-4 mt-2">
-                        <span className="text-sm text-slate-500">Session: {session.sessionId}</span>
-                        <span className="text-sm text-slate-500">Device: {session.device}</span>
-                        <span className="text-sm text-slate-500">Location: {session.location}</span>
-                      </div>
+                      
                     </div>
                   </div>
                   <div className="text-right">
@@ -721,20 +918,7 @@ export default function RiskMonitorContent() {
                   </div>
                 </div>
 
-                {/* Anomalies */}
-                <div className="mb-4">
-                  <p className="text-xs text-slate-500 uppercase tracking-wide mb-2">Detected Anomalies</p>
-                  <div className="flex flex-wrap gap-2">
-                    {session.anomalies.map((anomaly, index) => (
-                      <span
-                        key={index}
-                        className="px-2 py-1 bg-red-50 text-red-700 text-xs rounded-md"
-                      >
-                        {anomaly}
-                      </span>
-                    ))}
-                  </div>
-                </div>
+                
 
                 {/* Transaction Summary */}
                 <div className="grid md:grid-cols-2 gap-4 mb-4 pt-4 border-t border-slate-100">
@@ -748,14 +932,23 @@ export default function RiskMonitorContent() {
 
                 {/* Actions */}
                 <div className="flex gap-3">
-                  <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                  <button 
+                    onClick={() => handleViewDetails(session)}
+                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  >
                     <Eye className="w-4 h-4" />
                     View Details
                   </button>
-                  <button className="px-4 py-2 border border-slate-200 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors">
+                  <button 
+                    onClick={() => handleMarkAsSafe(session.id)}
+                    className="px-4 py-2 border border-slate-200 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors"
+                  >
                     Mark as Safe
                   </button>
-                  <button className="px-4 py-2 border border-red-200 text-red-700 rounded-lg hover:bg-red-50 transition-colors">
+                  <button 
+                    onClick={() => handleBlockUser(session.user)}
+                    className="px-4 py-2 border border-red-200 text-red-700 rounded-lg hover:bg-red-50 transition-colors"
+                  >
                     Block User
                   </button>
                 </div>

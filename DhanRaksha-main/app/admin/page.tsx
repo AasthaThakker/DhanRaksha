@@ -18,6 +18,7 @@ interface Metrics {
 interface FlaggedSession {
   id: string;
   user: string;
+  email: string;
   risk: string;
   reason: string;
   time: string;
@@ -39,6 +40,7 @@ export default function AdminPage() {
   const [recentSessions, setRecentSessions] = useState<FlaggedSession[]>([])
   const [fraudData, setFraudData] = useState<ChartData[]>([])
   const [accuracyData, setAccuracyData] = useState<AccuracyData[]>([])
+  const [alertMessage, setAlertMessage] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(null)
 
   useEffect(() => {
     async function fetchMetrics() {
@@ -73,6 +75,51 @@ export default function AdminPage() {
     return date.toLocaleDateString()
   }
 
+  const handleUnblockUser = async (userEmail: string) => {
+    try {
+      const confirmed = confirm(`Are you sure you want to unblock user: ${userEmail}?`)
+      if (!confirmed) return
+      
+      const res = await fetch('/api/admin/unblock-user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: userEmail })
+      })
+      
+      if (res.ok) {
+        setAlertMessage({
+          type: 'success',
+          message: `✅ User ${userEmail} has been unblocked successfully`
+        })
+        // Refresh metrics to update the list
+        const fetchMetrics = async () => {
+          try {
+            const res = await fetch('/api/admin/metrics')
+            if (res.ok) {
+              const data = await res.json()
+              setMetrics(data.metrics)
+              setRecentSessions(data.recentFlaggedSessions)
+              setFraudData(data.fraudData || [])
+              setAccuracyData(data.accuracyData || [])
+            }
+          } catch (error) {
+            console.error("Failed to fetch admin metrics:", error)
+          } finally {
+            setLoading(false)
+          }
+        }
+        fetchMetrics()
+      } else {
+        throw new Error('Failed to unblock user')
+      }
+    } catch (error) {
+      setAlertMessage({
+        type: 'error',
+        message: `❌ Failed to unblock user ${userEmail}`
+      })
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex h-[60vh] items-center justify-center">
@@ -83,6 +130,43 @@ export default function AdminPage() {
 
   return (
     <div className="space-y-8">
+      {/* Alert Modal */}
+      {alertMessage && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
+            <div className="flex items-start justify-between mb-4">
+              <h3 className={`text-lg font-semibold ${
+                alertMessage.type === 'success' 
+                  ? 'text-green-800' 
+                  : alertMessage.type === 'error' 
+                  ? 'text-red-800'
+                  : 'text-blue-800'
+              }`}>
+                {alertMessage.type === 'success' ? '✅ Success' : 
+                 alertMessage.type === 'error' ? '❌ Error' : 'ℹ️ Info'}
+              </h3>
+              <button
+                onClick={() => setAlertMessage(null)}
+                className="text-gray-400 hover:text-gray-600 text-2xl leading-none"
+              >
+                ×
+              </button>
+            </div>
+            <div className="text-sm text-gray-700 whitespace-pre-line">
+              {alertMessage.message}
+            </div>
+            <div className="mt-4 flex justify-end">
+              <button
+                onClick={() => setAlertMessage(null)}
+                className="px-4 py-2 bg-slate-600 text-white rounded-lg hover:bg-slate-700 transition-colors"
+              >
+                OK
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div>
         <h2 className="text-3xl font-bold text-slate-900">Admin Overview</h2>
@@ -143,6 +227,56 @@ export default function AdminPage() {
           <p className="text-sm text-slate-600">Last 30 days</p>
         </Card>
       </div>
+
+      {/* User Management - Flagged/Blocked Users */}
+      <Card className="p-6">
+        <div className="flex items-center justify-between mb-6">
+          <h3 className="text-lg font-semibold text-slate-900">User Management</h3>
+          <p className="text-sm text-slate-600">Manage flagged and blocked users</p>
+        </div>
+        <div className="space-y-4">
+          {recentSessions.length === 0 ? (
+            <p className="text-slate-500 text-center py-4">No flagged or blocked users found.</p>
+          ) : (
+            recentSessions.map((session) => (
+              <div
+                key={session.id}
+                className="border border-slate-200 rounded-lg p-4 hover:bg-slate-50 transition-colors"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-3">
+                      <div>
+                        <p className="font-medium text-slate-900">{session.user}</p>
+                        <p className="text-sm text-slate-600">Email: {session.email}</p>
+                        <p className="text-sm text-slate-600">Reason: {session.reason}</p>
+                        <p className="text-xs text-slate-600 mt-1">{formatTime(session.time)}</p>
+                      </div>
+                      <span
+                        className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${
+                          session.risk === "High" 
+                            ? "bg-red-50 text-red-700" 
+                            : "bg-amber-50 text-amber-700"
+                        }`}
+                      >
+                        {session.risk} Risk
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleUnblockUser(session.user)}
+                      className="px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm"
+                    >
+                      Unblock User
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </Card>
 
       {/* Charts */}
       <div className="grid lg:grid-cols-2 gap-6">

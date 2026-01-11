@@ -1,0 +1,96 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Account {
+  id        String   @id @default(cuid())
+  userId    String
+  balance   Float    @default(0.0)
+  currency  String   @default("USD")
+  createdAt DateTime @default(now())
+  updatedAt DateTime
+  User      User     @relation(fields: [userId], references: [id])
+}
+
+model BehaviorSession {
+  id        String    @id @default(cuid())
+  userId    String
+  score     Float
+  riskLevel RiskLevel
+  createdAt DateTime  @default(now())
+  User      User      @relation(fields: [userId], references: [id])
+}
+
+model Notification {
+  id            String           @id @default(cuid())
+  title         String
+  message       String
+  type          NotificationType
+  isRead        Boolean          @default(false)
+  userId        String
+  transactionId String?
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime
+  Transaction   Transaction?     @relation(fields: [transactionId], references: [id])
+  User          User             @relation(fields: [userId], references: [id])
+}
+
+model Transaction {
+  id           String          @id @default(cuid())
+  amount       Float
+  type         TransactionType
+  description  String
+  status       String          @default("COMPLETED")
+  riskScore    Float?          @default(0)
+  date         DateTime        @default(now())
+  userId       String
+  Notification Notification[]
+  User         User            @relation(fields: [userId], references: [id])
+}
+
+model User {
+  id                       String            @id @default(cuid())
+  email                    String            @unique
+  password                 String
+  name                     String
+  role                     Role              @default(USER)
+  createdAt                DateTime          @default(now())
+  updatedAt                DateTime
+  receiveAnomalyProtection Boolean           @default(false)
+  avgReceiveAmount7d       Float?
+  securityAnswer           String?
+  securityQuestion         String?
+  Account                  Account[]
+  BehaviorSession          BehaviorSession[]
+  Notification             Notification[]
+  Transaction              Transaction[]
+}
+
+enum NotificationType {
+  MONEY_DEDUCTED
+  PAYMENT_PENDING
+  TRANSACTION_COMPLETED
+  USER_FLAGGED
+  SYSTEM_ALERT
+}
+
+enum RiskLevel {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum TransactionType {
+  INCOME
+  EXPENSE
+  TRANSFER
+}
