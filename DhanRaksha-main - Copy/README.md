@@ -1,2 +1,0 @@
-# Rupiya-SecureBank
-Hackathon
