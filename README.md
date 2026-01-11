@@ -1,10 +1,10 @@
-# SecureBank AI - Smart Banking with Fraud Detection
+# DhanRaksha - Smart Banking with Fraud Detection
  docker exec -it e5365e120129 psql -U postgres -d securebank
  cd ml-service 
  uvicorn main:app --reload
 SecureBank AI is a modern banking application that integrates financial transactions with a real-time, hybrid AI fraud detection system. It combines a deterministic **Rules Engine** with a probabilistic **Machine Learning Model (Isolation Forest)** to identify and block suspicious activities.
 
-## 🧠 Working Principle: Hybrid Fraud Detection
+## Working Principle: Hybrid Fraud Detection
 
 The core innovation of this project is its **Hybrid Scoring Engine**, which evaluates every transaction capability before execution.
 
