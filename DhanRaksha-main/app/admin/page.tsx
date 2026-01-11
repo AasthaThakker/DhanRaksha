@@ -6,23 +6,6 @@ import Link from "next/link"
 import { useEffect, useState } from "react"
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts"
 
-const fraudData = [
-  { date: "Mon", attempts: 12 },
-  { date: "Tue", attempts: 19 },
-  { date: "Wed", attempts: 8 },
-  { date: "Thu", attempts: 15 },
-  { date: "Fri", attempts: 22 },
-  { date: "Sat", attempts: 18 },
-  { date: "Sun", attempts: 14 },
-]
-
-const accuracyData = [
-  { week: "Week 1", accuracy: 98.2 },
-  { week: "Week 2", accuracy: 98.5 },
-  { week: "Week 3", accuracy: 99.1 },
-  { week: "Week 4", accuracy: 99.3 },
-]
-
 interface Metrics {
   totalUsers: number;
   totalTransactions: number;
@@ -40,10 +23,22 @@ interface FlaggedSession {
   time: string;
 }
 
+interface ChartData {
+  date: string;
+  attempts: number;
+}
+
+interface AccuracyData {
+  week: string;
+  accuracy: number;
+}
+
 export default function AdminPage() {
   const [loading, setLoading] = useState(true)
   const [metrics, setMetrics] = useState<Metrics | null>(null)
   const [recentSessions, setRecentSessions] = useState<FlaggedSession[]>([])
+  const [fraudData, setFraudData] = useState<ChartData[]>([])
+  const [accuracyData, setAccuracyData] = useState<AccuracyData[]>([])
 
   useEffect(() => {
     async function fetchMetrics() {
@@ -53,6 +48,8 @@ export default function AdminPage() {
           const data = await res.json()
           setMetrics(data.metrics)
           setRecentSessions(data.recentFlaggedSessions)
+          setFraudData(data.fraudData || [])
+          setAccuracyData(data.accuracyData || [])
         }
       } catch (error) {
         console.error("Failed to fetch admin metrics:", error)

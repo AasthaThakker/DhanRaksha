@@ -18,10 +18,10 @@ export async function POST(request: Request) {
         const user = await db.user.findUnique({
             where: { email },
             include: {
-                accounts: true,
+                Account: true,
                 _count: {
                     select: {
-                        transactions: true
+                        Transaction: true
                     }
                 }
             }
@@ -45,8 +45,8 @@ export async function POST(request: Request) {
             role: user.role,
             receiveAnomalyProtection: user.receiveAnomalyProtection,
             avgReceiveAmount7d: user.avgReceiveAmount7d,
-            accountBalance: user.accounts[0]?.balance || 0,
-            transactionCount: user._count.transactions
+            accountBalance: user.Account[0]?.balance || 0,
+            transactionCount: user._count.Transaction
         })
 
         // Store session metadata for security tracking

@@ -20,6 +20,10 @@ export async function GET() {
             where: { riskLevel: 'HIGH' }
         })
 
+        const failedTransactions = await db.transaction.count({
+            where: { status: 'FAILED' }
+        })
+
         const recentFlaggedSessions = await db.behaviorSession.findMany({
             where: {
                 OR: [
@@ -39,14 +43,78 @@ export async function GET() {
             }
         })
 
+        // Generate fraud data for last 7 days
+        const fraudData = []
+        const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+        for (let i = 6; i >= 0; i--) {
+            const date = new Date()
+            date.setDate(date.getDate() - i)
+            const dayStart = new Date(date.setHours(0, 0, 0, 0))
+            const dayEnd = new Date(date.setHours(23, 59, 59, 999))
+            
+            const dayAttempts = await db.transaction.count({
+                where: {
+                    date: {
+                        gte: dayStart,
+                        lte: dayEnd
+                    },
+                    status: 'FAILED'
+                }
+            })
+            
+            fraudData.push({
+                date: days[date.getDay()],
+                attempts: dayAttempts
+            })
+        }
+
+        // Generate accuracy data for last 4 weeks
+        const accuracyData = []
+        for (let i = 3; i >= 0; i--) {
+            const weekStart = new Date()
+            weekStart.setDate(weekStart.getDate() - (i * 7))
+            weekStart.setHours(0, 0, 0, 0)
+            const weekEnd = new Date(weekStart)
+            weekEnd.setDate(weekEnd.getDate() + 6)
+            weekEnd.setHours(23, 59, 59, 999)
+            
+            const totalWeekTransactions = await db.transaction.count({
+                where: {
+                    date: {
+                        gte: weekStart,
+                        lte: weekEnd
+                    }
+                }
+            })
+            
+            const successfulWeekTransactions = await db.transaction.count({
+                where: {
+                    date: {
+                        gte: weekStart,
+                        lte: weekEnd
+                    },
+                    status: 'COMPLETED'
+                }
+            })
+            
+            const accuracy = totalWeekTransactions > 0 
+                ? (successfulWeekTransactions / totalWeekTransactions) * 100 
+                : 100
+            
+            accuracyData.push({
+                week: `Week ${4 - i}`,
+                accuracy: Math.min(accuracy, 100)
+            })
+        }
+
         return NextResponse.json({
             metrics: {
                 totalUsers,
                 totalTransactions,
                 totalTransactionVolume: totalVolume._sum.amount || 0,
                 highRiskAlerts: highRiskCount,
-                accuracy: 99.3, // Placeholder for AI accuracy
-                fraudBlocked: highRiskCount * 2 // Placeholder logic
+                accuracy: accuracyData.length > 0 ? accuracyData[accuracyData.length - 1].accuracy : 99.3,
+                fraudBlocked: failedTransactions
             },
             recentFlaggedSessions: recentFlaggedSessions.map((s: any) => ({
                 id: s.id,
@@ -54,7 +122,9 @@ export async function GET() {
                 risk: s.riskLevel.charAt(0) + s.riskLevel.slice(1).toLowerCase(),
                 reason: s.score < 50 ? 'Unusual behavioral patterns' : 'Flagged activity',
                 time: s.createdAt.toISOString()
-            }))
+            })),
+            fraudData,
+            accuracyData
         })
 
     } catch (error) {

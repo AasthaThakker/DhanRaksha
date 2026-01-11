@@ -79,27 +79,6 @@ export default function DashboardPage() {
             <span className="text-slate-600 text-sm">{metrics?.monthlyTransactionCount} transactions</span>
           </div>
         </Card>
-
-        {/* AI Risk Score */}
-        <Card className="p-6 bg-gradient-to-br from-blue-50 to-cyan-50">
-          <p className="text-slate-600 text-sm font-medium mb-2 flex items-center gap-2">
-            <Shield className="w-4 h-4" />
-            AI Risk Score
-          </p>
-          <h3 className={`text-3xl font-bold mb-4 ${metrics?.riskScore === 'HIGH' ? 'text-red-600' :
-            metrics?.riskScore === 'MEDIUM' ? 'text-yellow-600' : 'text-blue-600'
-            }`}>
-            {metrics?.riskScore || 'UNKNOWN'}
-          </h3>
-          <div className="w-full bg-slate-200 rounded-full h-2">
-            <div
-              className={`h-2 rounded-full ${metrics?.riskScore === 'HIGH' ? 'bg-red-500' :
-                metrics?.riskScore === 'MEDIUM' ? 'bg-yellow-500' : 'bg-green-500'
-                }`}
-              style={{ width: `${metrics?.riskScoreValue || 15}%` }}
-            ></div>
-          </div>
-        </Card>
       </div>
 
       {/* Charts Section */}
