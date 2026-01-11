@@ -2,7 +2,7 @@
 
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { ArrowUpRight, ArrowDownLeft, Shield, RefreshCw } from "lucide-react"
+import { ArrowUpRight, ArrowDownLeft, Shield, RefreshCw, AlertTriangle } from "lucide-react"
 import Link from "next/link"
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts"
 import { useEffect, useState } from "react"
@@ -77,6 +77,29 @@ export default function DashboardPage() {
           </h3>
           <div className="flex items-center gap-2">
             <span className="text-slate-600 text-sm">{metrics?.monthlyTransactionCount} transactions</span>
+          </div>
+        </Card>
+
+        {/* Risk Level */}
+        <Card className={`p-6 bg-white/80 backdrop-blur-xl border hover:shadow-lg transition-all duration-300 ${
+          metrics?.riskScore === 'HIGH' 
+            ? 'border-red-200 hover:shadow-red-500/10' 
+            : metrics?.riskScore === 'MEDIUM'
+            ? 'border-yellow-200 hover:shadow-yellow-500/10'
+            : 'border-green-200 hover:shadow-green-500/10'
+        }`}>
+          <p className="text-slate-600 text-sm font-medium mb-2">Risk Level</p>
+          <h3 className={`text-3xl font-bold mb-4 ${
+            metrics?.riskScore === 'HIGH' 
+              ? 'text-red-600' 
+              : metrics?.riskScore === 'MEDIUM'
+              ? 'text-yellow-600'
+              : 'text-green-600'
+          }`}>
+            {metrics?.riskScore || 'LOW'}
+          </h3>
+          <div className="flex items-center gap-2">
+            <span className="text-slate-600 text-sm">Score: {metrics?.riskScoreValue || 15}</span>
           </div>
         </Card>
       </div>
