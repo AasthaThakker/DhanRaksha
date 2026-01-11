@@ -88,7 +88,7 @@ A full-stack monorepo containing the Next.js frontend/backend and the Python ML 
 └── public/                     # Static assets
 ```
 
-## � Getting Started
+## Getting Started
 
 ### 1. Prerequisites
 *   Node.js & npm
