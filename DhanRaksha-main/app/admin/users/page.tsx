@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { Card } from "@/components/ui/card"
-import { Users, UserPlus, Edit, Trash2, Search, Filter, Loader2, Mail, Calendar, DollarSign, TrendingUp } from "lucide-react"
+import { Users, UserPlus, Edit, Trash2, Search, Filter, Loader2, Mail, Calendar, TrendingUp, Wallet } from "lucide-react"
 
 interface User {
   id: string
@@ -200,10 +200,10 @@ export default function UserAnalyticsPage() {
             <div>
               <p className="text-slate-600 text-sm font-medium">Total Balance</p>
               <h3 className="text-3xl font-bold text-slate-900 mt-2">
-                ${totalBalance.toLocaleString()}
+                ₹{totalBalance.toLocaleString()}
               </h3>
             </div>
-            <DollarSign className="w-8 h-8 text-green-600" />
+            <Wallet className="w-8 h-8 text-green-600" />
           </div>
           <p className="text-sm text-slate-600">Across all accounts</p>
         </Card>
@@ -213,7 +213,7 @@ export default function UserAnalyticsPage() {
             <div>
               <p className="text-slate-600 text-sm font-medium">Avg Balance</p>
               <h3 className="text-3xl font-bold text-slate-900 mt-2">
-                ${avgBalance.toFixed(0)}
+                ₹{avgBalance.toFixed(0)}
               </h3>
             </div>
             <TrendingUp className="w-8 h-8 text-purple-600" />
@@ -282,7 +282,7 @@ export default function UserAnalyticsPage() {
                     </td>
                     <td className="py-4 px-4">
                       <p className="font-medium text-slate-900">
-                        ${user.balance.toLocaleString()}
+                        ₹{user.balance.toLocaleString()}
                       </p>
                       <p className="text-sm text-slate-600">{user.currency}</p>
                     </td>

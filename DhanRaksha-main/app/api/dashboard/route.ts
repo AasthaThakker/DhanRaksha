@@ -114,7 +114,7 @@ export async function GET() {
             recentTransactions: recentTransactions.map((tx: any) => ({
                 id: tx.id,
                 name: tx.description,
-                amount: tx.type === 'INCOME' ? `+$${tx.amount}` : `-$${tx.amount}`,
+                amount: tx.type === 'INCOME' ? `+₹${tx.amount}` : `-₹${tx.amount}`,
                 type: tx.type.toLowerCase(),
                 date: tx.date,
                 icon: tx.type === 'INCOME' ? '💰' : '📦',

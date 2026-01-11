@@ -75,7 +75,7 @@ export async function GET() {
         createdAt: user.createdAt,
         updatedAt: user.updatedAt,
         balance: user.Account[0]?.balance || 0,
-        currency: user.Account[0]?.currency || 'USD',
+        currency: user.Account[0]?.currency || 'INR',
         accountCreated: user.Account[0]?.createdAt || null,
         transactionCount: user._count.Transaction
       }))
@@ -145,7 +145,7 @@ export async function POST(request: Request) {
         Account: {
           create: {
             balance: initialDeposit,
-            currency: 'USD',
+            currency: 'INR',
             updatedAt: new Date()
           }
         }
@@ -274,7 +274,7 @@ export async function PUT(request: Request) {
           data: {
             userId: targetUserId,
             balance: updateData.balance,
-            currency: 'USD',
+            currency: 'INR',
             updatedAt: new Date()
           }
         })

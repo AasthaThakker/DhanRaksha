@@ -800,11 +800,11 @@ export default function RiskMonitorContent() {
                       </div>
                       <div className="flex justify-between text-sm">
                         <span className="text-slate-600">Avg Amount:</span>
-                        <span className="font-medium">${selectedUserForSpider.avgAmount.toLocaleString()}</span>
+                        <span className="font-medium">₹{selectedUserForSpider.avgAmount.toLocaleString()}</span>
                       </div>
                       <div className="flex justify-between text-sm">
                         <span className="text-slate-600">Max Amount:</span>
-                        <span className="font-medium">${selectedUserForSpider.maxAmount.toLocaleString()}</span>
+                        <span className="font-medium">₹{selectedUserForSpider.maxAmount.toLocaleString()}</span>
                       </div>
                     </div>
                   </div>
@@ -925,7 +925,7 @@ export default function RiskMonitorContent() {
                   <div>
                     <p className="text-xs text-slate-500 uppercase tracking-wide mb-1">Transaction Activity</p>
                     <p className="text-sm font-medium text-slate-900">
-                      {session.transactionCount} transactions • ${session.totalAmount.toLocaleString()}
+                      {session.transactionCount} transactions • ₹{session.totalAmount.toLocaleString()}
                     </p>
                   </div>
                 </div>

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { createUserNotification } from '@/lib/dynamic-admin-notifications'
 
 export async function POST(request: NextRequest) {
   try {
@@ -37,6 +38,9 @@ export async function POST(request: NextRequest) {
         score: { gte: 70 }
       }
     })
+
+    // Create admin notification for unblocking
+    await createUserNotification('updated', email, `${email} (unblocked)`)
 
     return NextResponse.json({ 
       success: true,

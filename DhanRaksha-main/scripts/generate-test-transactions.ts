@@ -88,7 +88,7 @@ async function generateTransactions() {
           data: {
             userId: user.id,
             balance: 1000000, // Give them enough balance
-            currency: 'USD',
+            currency: 'INR',
             updatedAt: new Date()
           }
         })

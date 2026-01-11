@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { createSuspiciousUserNotification } from '@/lib/dynamic-admin-notifications'
 
 export async function GET(request: Request) {
     try {
@@ -218,6 +219,19 @@ export async function GET(request: Request) {
             highRisk: sessionsWithTransactions.filter(s => s.riskLevel === 'HIGH').length,
             mediumRisk: sessionsWithTransactions.filter(s => s.riskLevel === 'MEDIUM').length,
             lowRisk: sessionsWithTransactions.filter(s => s.riskLevel === 'LOW').length
+        }
+
+        // Check for suspicious activity and create notifications
+        const highRiskSessions = sessionsWithTransactions.filter(s => s.riskLevel === 'HIGH')
+        for (const session of highRiskSessions) {
+            // Create notification for suspicious activity (only if it's a new high-risk session)
+            if (session.riskScore >= 70) {
+                await createSuspiciousUserNotification(
+                    session.user,
+                    session.riskLevel,
+                    `Risk score: ${session.riskScore.toFixed(1)}`
+                )
+            }
         }
 
         return NextResponse.json({

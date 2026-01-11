@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
             return {
                 id: transaction.id,
                 name: transaction.description,
-                amount: transaction.type === 'INCOME' ? `+$${transaction.amount.toFixed(2)}` : `-$${transaction.amount.toFixed(2)}`,
+                amount: transaction.type === 'INCOME' ? `+₹${transaction.amount.toFixed(2)}` : `-₹${transaction.amount.toFixed(2)}`,
                 rawAmount: transaction.amount,
                 type: transaction.type.toLowerCase(),
                 status: transaction.status,

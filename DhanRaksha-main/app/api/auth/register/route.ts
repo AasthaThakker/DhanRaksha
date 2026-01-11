@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { hashPassword, login } from '@/lib/auth'
 import { z } from 'zod'
+import { createUserNotification } from '@/lib/dynamic-admin-notifications'
 
 // Validation schema with strict requirements
 const registerSchema = z.object({
@@ -100,7 +101,7 @@ export async function POST(request: Request) {
                 Account: {
                     create: {
                         balance: 0.00, // Removed sign-up bonus for security
-                        currency: 'USD',
+                        currency: 'INR',
                         updatedAt: new Date(),
                     },
                 },
@@ -117,6 +118,9 @@ export async function POST(request: Request) {
             name: user.name, 
             role: user.role 
         })
+
+        // Create admin notification for new user registration
+        await createUserNotification('created', user.email, user.name)
 
         // Return user data without sensitive information
         return NextResponse.json({ 

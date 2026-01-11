@@ -10,7 +10,7 @@ model Account {
   id        String   @id @default(cuid())
   userId    String
   balance   Float    @default(0.0)
-  currency  String   @default("USD")
+  currency  String   @default("INR")
   createdAt DateTime @default(now())
   updatedAt DateTime
   User      User     @relation(fields: [userId], references: [id])

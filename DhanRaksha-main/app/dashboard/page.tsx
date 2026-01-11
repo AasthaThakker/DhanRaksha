@@ -149,18 +149,18 @@ export default function DashboardPage() {
       </Card>
 
       {/* Quick Actions */}
-      <div className="grid md:grid-cols-2 gap-6">
+      {/* <div className="grid md:grid-cols-2 gap-6">
         <Link href="/dashboard/transfer">
           <Button className="w-full bg-blue-600 hover:bg-blue-700 h-12 text-base gap-2">
             <ArrowUpRight className="w-5 h-5" />
             Send Money
           </Button>
-        </Link>
-        <Button variant="outline" className="w-full h-12 text-base gap-2 bg-white">
+        </Link> */}
+        {/* <Button variant="outline" className="w-full h-12 text-base gap-2 bg-white">
           <ArrowDownLeft className="w-5 h-5" />
           Request Money
-        </Button>
-      </div>
+        </Button> */}
+      {/* </div> */}
     </div>
   )
 }

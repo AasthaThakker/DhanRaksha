@@ -29,7 +29,7 @@ async function main() {
             accounts: {
                 create: {
                     balance: 24580.50,
-                    currency: 'USD',
+                    currency: 'INR',
                 },
             },
             sessions: {

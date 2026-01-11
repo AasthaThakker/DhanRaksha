@@ -4,6 +4,7 @@ import type React from "react"
 import { useState } from "react"
 import { Bell, LogOut, Menu, Settings, User, ChevronDown, BarChart3, Users, AlertTriangle, Zap, X } from "lucide-react"
 import Link from "next/link"
+import { NotificationIcon } from "@/components/notification-icon"
 
 export default function AdminLayout({
   children,
@@ -92,10 +93,7 @@ export default function AdminLayout({
 
           <div className="flex items-center gap-6">
             {/* Notifications */}
-            <button className="p-2 hover:bg-blue-50 rounded-lg transition-colors relative">
-              <Bell className="w-5 h-5 text-slate-600" />
-              <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
-            </button>
+            <NotificationIcon />
 
             {/* Profile Menu */}
             <div className="relative">
